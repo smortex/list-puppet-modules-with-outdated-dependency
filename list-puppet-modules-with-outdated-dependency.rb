@@ -61,7 +61,7 @@ end
 required_module_name = ARGV[0]
 required_module_version = Gem::Version.new(ARGV[1])
 
-query = "/v3/modules?#{{ exclude_fields: 'releases' }.merge($options).reject { |k| k == :verbose }.map { |k, v| "#{k}=#{v}" }.join('&')}"
+query = "/v3/modules?#{{ exclude_fields: 'releases', hide_deprecated: 'yes' }.merge($options).reject { |k| k == :verbose }.map { |k, v| "#{k}=#{v}" }.join('&')}"
 
 while query
   info "GET #{query}"
