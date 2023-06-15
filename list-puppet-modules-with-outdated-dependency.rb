@@ -94,6 +94,8 @@ while query
 
     summary[:ok] += 1
     info "#{name} (#{version_requirement}) is fine"
+  rescue ArgumentError
+    error("#{name} (#{version_requirement}): ignored (ArgumentError)")
   end
 
   query = json['pagination']['next']
