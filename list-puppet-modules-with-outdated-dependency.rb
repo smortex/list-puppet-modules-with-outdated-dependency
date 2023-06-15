@@ -53,12 +53,13 @@ if ARGV.count != 2
   exit 1
 end
 
-unless ARGV[0] =~ %r{\A[[:alnum:]]+/[[:alnum:]]+\z}
+unless m = ARGV[0].match(%r{\A(?<owner>[[:alnum:]]+)[/-](?<name>[[:alnum:]]+)\z})
   error(%(dependency-name must be "owner/module", got "#{ARGV[0]}"))
   exit 1
 end
 
-required_module_name = ARGV[0]
+required_module_owner = m[:owner]
+required_module_name = m[:name]
 required_module_version = Gem::Version.new(ARGV[1])
 
 query = "/v3/modules?#{{ exclude_fields: 'releases', hide_deprecated: 'yes' }.merge($options).reject { |k| k == :verbose }.map { |k, v| "#{k}=#{v}" }.join('&')}"
@@ -70,7 +71,7 @@ while query
 
   json['results'].each do |result|
     name = result.dig('current_release', 'slug')
-    version_requirement = result.dig('current_release', 'metadata', 'dependencies').select { |dependency| dependency['name'] == required_module_name }.dig(0, 'version_requirement')
+    version_requirement = result.dig('current_release', 'metadata', 'dependencies').select { |dependency| dependency['name'].match(%r{\A#{required_module_owner}[/-]#{required_module_name}\z}) }.dig(0, 'version_requirement')
 
     unless version_requirement
       summary[:ok] += 1
