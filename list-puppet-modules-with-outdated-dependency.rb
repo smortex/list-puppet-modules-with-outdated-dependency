@@ -53,14 +53,22 @@ if ARGV.count != 2
   exit 1
 end
 
-unless m = ARGV[0].match(%r{\A(?<owner>[[:alnum:]]+)[/-](?<name>[[:alnum:]]+)\z})
-  error(%(dependency-name must be "owner/module", got "#{ARGV[0]}"))
-  exit 1
-end
+if ARGV[0] == 'puppet'
+  requirement_path = %w[current_release metadata requirements]
+  requirement = /\Apuppet\z/
+else
+  unless (m = ARGV[0].match(%r{\A(?<owner>[[:alnum:]]+)[/-](?<name>[[:alnum:]]+)\z}))
+    error(%(dependency-name must be "owner/module", got "#{ARGV[0]}"))
+    exit 1
+  end
 
-required_module_owner = m[:owner]
-required_module_name = m[:name]
-required_module_version = Gem::Version.new(ARGV[1])
+  requirement_path = %w[current_release metadata dependencies]
+
+  required_module_owner = m[:owner]
+  required_module_name = m[:name]
+  requirement = %r{\A#{required_module_owner}[/-]#{required_module_name}\z}
+end
+requirement_version = Gem::Version.new(ARGV[1])
 
 query = "/v3/modules?#{{ exclude_fields: 'releases', hide_deprecated: 'yes' }.merge($options).reject { |k| k == :verbose }.map { |k, v| "#{k}=#{v}" }.join('&')}"
 
@@ -71,7 +79,7 @@ while query
 
   json['results'].each do |result|
     name = result.dig('current_release', 'slug')
-    version_requirement = result.dig('current_release', 'metadata', 'dependencies').select { |dependency| dependency['name'].match(%r{\A#{required_module_owner}[/-]#{required_module_name}\z}) }.dig(0, 'version_requirement')
+    version_requirement = result.dig(*requirement_path).select { |dependency| dependency['name'].match(requirement) }.dig(0, 'version_requirement')
 
     unless version_requirement
       summary[:ok] += 1
@@ -87,7 +95,7 @@ while query
       next
     end
 
-    unless required_module_version >= Gem::Version.new(m[:lower]) && required_module_version < Gem::Version.new(m[:upper])
+    unless requirement_version >= Gem::Version.new(m[:lower]) && requirement_version < Gem::Version.new(m[:upper])
       summary[:outdated] += 1
       warn "#{name} (#{version_requirement}) needs updating"
       next
